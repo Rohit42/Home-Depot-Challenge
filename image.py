@@ -90,6 +90,7 @@ def model(X_train, Y_train, X_test, Y_test, learning_rate = 0.009, num_epochs = 
     (m, n_H0, n_W0, n_C0) = X_train.shape             
     n_y = Y_train.shape[1]                            
     costs = []
+    accs = []
 
     X, Y = create_placeholders(n_H0, n_W0, n_C0, n_y)
     parameters = initialize_parameters()
@@ -125,14 +126,19 @@ def model(X_train, Y_train, X_test, Y_test, learning_rate = 0.009, num_epochs = 
                 print ("Cost after epoch %i: %f" % (epoch, minibatch_cost))
             if print_cost == True and epoch % 1 == 0:
                 costs.append(minibatch_cost)
+                accuracy = sess.run(accuracy, feed_dict = {X: X_train, Y: Y_train})
+                accs.append(accuracy)
+
+
         
         
         # plot the cost
-        plt.plot(np.squeeze(costs))
-        plt.ylabel('cost')
+        plt.plot(np.squeeze(accs))
+        plt.ylabel('acc')
         plt.xlabel('iterations (per tens)')
         plt.title("Learning rate =" + str(learning_rate))
         plt.show()
+
 
         # Calculate the correct predictions
         predict_op = tf.argmax(Z3, 1)
@@ -186,4 +192,5 @@ def load_data():
     return X_train, Y_train, X_test, Y_test
 
 X_train, Y_train, X_test, Y_test = load_data()
+print(X_train.shape)
 trAcc, teAcc, parameters = model(X_train, Y_train, X_test, Y_test)
