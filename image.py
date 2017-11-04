@@ -38,9 +38,13 @@ def forward_propagation(X, parameters):
     A2 = tf.nn.relu(Z2)
     P2 = tf.nn.max_pool(A2, ksize=[1, 4, 4, 1], strides=[1, 2, 2, 1], padding="SAME")
     P2 = tf.contrib.layers.flatten(P2)
-    Z3 = tf.contrib.layers.fully_connected(P2, 6, activation_fn=None)
+
+    dense = tf.layers.dense(inputs=P2, units=1024, activation=tf.nn.relu)
     dropout = tf.layers.dropout(
-        inputs=Z3, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
+        inputs=dense, rate=0.48)
+    Z3 = tf.layers.dense(inputs=dropout, units=6)
+
+    #Z3 = tf.contrib.layers.fully_connected(P2, 6, activation_fn=None)
 
     return Z3
 
@@ -92,7 +96,7 @@ def compute_cost(Z3, Y):
     return cost
 
 
-def model(X_train, Y_train, X_test, Y_test, learning_rate=0.004, num_epochs=200, minibatch_size=64, print_cost=True):
+def model(X_train, Y_train, X_test, Y_test, test=None, img_id=None, learning_rate=0.003, num_epochs=250, minibatch_size=64, print_cost=True):
     # ops.reset_default_graph()
     tf.set_random_seed(1)  # to keep results consistent (tensorflow seed)
     seed = 3  # to keep results consistent (numpy seed)
@@ -104,6 +108,7 @@ def model(X_train, Y_train, X_test, Y_test, learning_rate=0.004, num_epochs=200,
     X, Y = create_placeholders(n_H0, n_W0, n_C0, n_y)
     parameters = initialize_parameters()
     Z3 = forward_propagation(X, parameters)
+
     cost = compute_cost(Z3, Y)
     optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost)
     init = tf.global_variables_initializer()
@@ -149,8 +154,17 @@ def model(X_train, Y_train, X_test, Y_test, learning_rate=0.004, num_epochs=200,
         plt.show()
 
         # Calculate the correct predictions
+        if test is not None:
+            out = open("output.txt", "w")
+            numsToWords = {0: 'Chandeliers', 1: 'Showerheads', 2: 'Ceiling Fans', 3: 'Vanity Lighting', 4: 'Floor Lamps',
+                           5: 'Single Handle Bathroom Sink Faucets'}
+            predict_op = Z3
+            for i in range(len(test)):
+                out.write(str(img_id[i]) + "|" + numsToWords[np.argmax(sess.run(tf.nn.softmax(predict_op), feed_dict={X:[test[i]]}))] + "\n")
+            out.close()
         predict_op = tf.argmax(Z3, 1)
         correct_prediction = tf.equal(predict_op, tf.argmax(Y, 1))
+
 
         # Calculate accuracy on the test set
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
@@ -159,8 +173,8 @@ def model(X_train, Y_train, X_test, Y_test, learning_rate=0.004, num_epochs=200,
         test_accuracy = accuracy.eval({X: X_test, Y: Y_test})
         print("Train Accuracy:", train_accuracy)
         print("Test Accuracy:", test_accuracy)
-
         return train_accuracy, test_accuracy, parameters
+
 
 
 def load_data():
@@ -184,10 +198,10 @@ def load_data():
         X_train.append(newImg)
     X_train = np.asarray(X_train)
     Y_train = np.asarray(Y_train)
-    # indices = np.array([i for i in range(len(X_train))])
-    # np.random.shuffle(indices)
-    # X_train = X_train[indices]
-    # Y_train = Y_train[indices]
+    indices = np.array([i for i in range(len(X_train))])
+    np.random.shuffle(indices)
+    X_train = X_train[indices]
+    Y_train = Y_train[indices]
     Y_train = np.eye(6)[Y_train.reshape(-1)]
     m = X_train.shape[0]
     X_test = X_train[:3 * m // 4, :, :, :]
@@ -199,4 +213,17 @@ def load_data():
 
 X_train, Y_train, X_test, Y_test = load_data()
 print(X_train.shape)
-trAcc, teAcc, parameters = model(X_train, Y_train, X_test, Y_test)
+#trAcc, teAcc, parameters = model(X_train, Y_train, X_test, Y_test)
+test_data = []
+ids = []
+for file in os.listdir("image_classification/test"):
+    newImg = cv2.imread(os.path.join("image_classification/test", file))
+    test_data.append(newImg)
+    ids.append(file)
+test_data = np.asarray(test_data)
+print(test_data.shape)
+m = test_data[0]
+#test_data = np.reshape(test_data, (m, 65, 65, 3))
+ids = np.asarray(ids)
+#ids = np.reshape(ids, (1, m))
+trAcc, teAcc, parameters = model(X_train, Y_train, X_test, Y_test, test=test_data, img_id=ids)
