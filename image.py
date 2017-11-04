@@ -53,7 +53,7 @@ def random_mini_batches(X, Y, mini_batch_size = 64, seed = 0):
     mini_batches -- list of synchronous (mini_batch_X, mini_batch_Y)
     """
     
-    m = X.shape[0]                  # number of training examples
+    m = X_train.shape[0]                  # number of training examples
     mini_batches = []
     np.random.seed(seed)
     
@@ -83,7 +83,7 @@ def compute_cost(Z3, Y):
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits = Z3, labels = Y))
     return cost
 
-def model(X_train, Y_train, learning_rate = 0.009, num_epochs = 10, minibatch_size = 64, print_cost = True):
+def model(X_train, Y_train, X_test, Y_test, learning_rate = 0.009, num_epochs = 100, minibatch_size = 64, print_cost = True):
     #ops.reset_default_graph()
     tf.set_random_seed(1)                             # to keep results consistent (tensorflow seed)
     seed = 3                                          # to keep results consistent (numpy seed)
@@ -142,11 +142,11 @@ def model(X_train, Y_train, learning_rate = 0.009, num_epochs = 10, minibatch_si
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
         print(accuracy)
         train_accuracy = accuracy.eval({X: X_train, Y: Y_train})
-        #test_accuracy = accuracy.eval({X: X_test, Y: Y_test})
+        test_accuracy = accuracy.eval({X: X_test, Y: Y_test})
         print("Train Accuracy:", train_accuracy)
-        #print("Test Accuracy:", test_accuracy)
+        print("Test Accuracy:", test_accuracy)
                 
-        return train_accuracy, parameters
+        return train_accuracy, test_accuracy, parameters
 
 
 
@@ -178,7 +178,12 @@ def load_data():
     #X_train = X_train[indices]
     #Y_train = Y_train[indices]
     Y_train = np.eye(6)[Y_train.reshape(-1)]
-    return X_train, Y_train
+    m = X_train.shape[0]
+    X_test = X_train[:3*m//4, :, :, :]
+    X_train = X_train[int(3/4*m):, :, :, :]
+    Y_test = Y_train[:int(3 / 4 * m), :]
+    Y_train = Y_train[int(3 / 4 * m):, :]
+    return X_train, Y_train, X_test, Y_test
 
-X_train, Y_train = load_data()
-_, parameters = model(X_train, Y_train)
+X_train, Y_train, X_test, Y_test = load_data()
+trAcc, teAcc, parameters = model(X_train, Y_train, X_test, Y_test)
